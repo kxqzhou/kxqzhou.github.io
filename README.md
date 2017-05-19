@@ -1,2 +1,2 @@
 # kxqzhou.github.io
-Portfolio website
+personal website
