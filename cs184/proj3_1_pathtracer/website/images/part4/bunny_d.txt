@@ -1,0 +1,1 @@
+./pathtracer -t 8 -s 64 -l 16 -m ? -r 480 360 -f bunny_d?.png ../dae/sky/CBbunny.dae 

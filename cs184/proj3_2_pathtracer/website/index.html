@@ -1,0 +1,283 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1500px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Ray Tracer, Part 1</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2017</h1>
+<h1 align="middle">Project 3-2: Ray Tracer, Part 2</h1>
+<h2 align="middle">Kyle Zhou, CS184-abj</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+
+<p>In part 2 of the ray tracer project we implement some more interesting materials to use in our pathtracer. We also add support for environment lighting and extend our camera with the capability of changing depth of field. I imagine in software packages such as Pixar's Renderman, which includes many shading material presets such as glass and metal, each material type is represented internally by its own particular BSDF function. In addition, Renderman's dome light is likely based on environment map lighting, with uniform sphere sampling if left to default settings and importance sampling if a texture is provided.</p>
+
+<!-- <p>Use this section to write an overview of the assignment. All of the text in your write-up should be <em>in your own words</em>. If you need to add additional HTML features to this document, you can search the <a href="http://www.w3schools.com/">http://www.w3schools.com/</a> website for instructions. To edit the HTML, you can just copy and paste existing chunks and fill in the text and image file names appropriately.</p>
+<p>The website writeup is intended to be a self-contained walkthrough of the assignment: we want this to be a piece of work which showcases your understanding of relevant concepts through both mesh images as well as written explanations about what you did to complete each part of the assignment. Try to be as clear and organized as possible when writing about your own output files or extensions to the assignment. We want to understand what you've achieved and how you've done it!</p>
+<p>If you are well-versed in web development, feel free to ditch this template and make a better looking page. Just make sure that you include all the components as we've laid them out here. </p> -->
+
+<h2 align="middle">Part 1: Mirror and Glass Materials</h2>
+  
+  <p>The first portion of this project consisted of adding the ability to simulate mirror and glass materials. In order to replicate the behavior of light in these objects, we first needed to implement reflection and refraction of our light vectors. Because the surface normal in the object coordinate frame where BSDF calculations occur always points along the z axis, reflection is a simple negation of the xy coordinates. Refraction, however, must take into account the ratio of the indices of refraction between the exit and entrance material. This ratio varies depending on whether the outgoing ray originated within the object or outside. The rest of the coordinates follow from the spherical coordinate Snell's equations.</p>
+
+  <p>In order to emulate glass properly, we had to combine both reflection and refraction in the BSDF function. To do this, we needed to know the ratio of the reflection energy to the refraction energy, which we calculated using <a href="https://en.wikipedia.org/wiki/Schlick's_approximation">Schlick's_approximation</a>. The algorithm is as follows: First, decide if there is internal reflection, in which case we simply reflect our outgoing light vector into our inbound vector. If there is not, we use Schlick's approximation to calculate our energy ratio and then randomly decide, with the ratio as the probability, to either reflect or refract the light ray.</p>
+
+  <p>The pictures below are all of the same Cornell Box scene, containing a sphere of a mirror material on the left and a glass sphere on the right. Notice that at a maximum ray depth of 0, the spheres render as entirely black. This is because we do not permit any light bouncing, and as such light cannot be reflected off the materials. At a maximum ray depth of one, the mirror is able to reflect incoming rays and thus renders with the desired effect, but the glass has little to no internal reflection or refraction occuring, so its inside appears dark. This is resolved somewhat at a maximum depth of 2, and at a depth of 3 light is able to bounce inside the glass and re-exit, creating a white spot in the shadow of the sphere. At 4 bounces and onward, we can see a small patch of light on the bottom right corner of the blue wall, likely coming from light that reflected off the mirror sphere and refracted through the glass sphere.</p>
+
+  <p>Each image was generated with 1024 samples per pixel and 4 light rays.</p>
+
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p1/spheres_0.png" width="480px" />
+        <figcaption align="middle">Max ray depth of 0</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p1/spheres_1.png" width="480px" />
+        <figcaption align="middle">Max ray depth of 1</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p1/spheres_2.png" width="480px" />
+        <figcaption align="middle">Max ray depth of 2</figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td align="middle">
+        <img src="images/p1/spheres_3.png" width="480px" />
+        <figcaption align="middle">Max ray depth of 3</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p1/spheres_4.png" width="480px" />
+        <figcaption align="middle">Max ray depth of 4</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p1/spheres_5.png" width="480px" />
+        <figcaption align="middle">Max ray depth of 5</figcaption>
+        </td>
+      </tr>
+    </table>
+    <br>
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p1/spheres_100.png" width="480px" />
+        <figcaption align="middle">Max ray depth of 100</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- <p>Here is an example of how to include a simple formula:</p>
+  <p align="middle"><pre align="middle">a^2 + b^2 = c^2</pre></p>
+  <p>or, alternatively, you can include an SVG image of a LaTex formula.</p> -->
+
+<h2 align="middle">Part 2: Microfacet Material</h2>
+
+  <p>The next portion of the project involved implementing a "microfacet" material. Surfaces in reality are usually not perfectly smooth, instead being composed of tiny facets that have normals that are distributed about the normal of the theoretical smooth surface normal, differing by a degree determined by the roughness of the material. To implement a microfacet BRDF evaluation function, we wrote a Fresnel term to give color to the material and a normal distribution function to define how the surface normals would be distributed. In this project we used a Beckmann distribution to approximate a Gaussian (normal) probability distribution.</p>
+
+  <p>The dragon in the four images below contains a gold microfacet material. Notice as the roughness of the material increases, the dragon increases in brightness. This is due to the greater distribution of surface normals, leading to more reflections against itself. However, it also becomes less metallic and glossy, instead looking more similar to a diffuse material.</p>
+
+  <p>Each images was rendered with 256 samples per pixel, 4 light rays, and a maximum ray depth of 5.</p>
+
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p2/dragon_005.png" width="480px" />
+        <figcaption align="middle">Roughness of 0.005</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p2/dragon_050.png" width="480px" />
+        <figcaption align="middle">Roughness of 0.05</figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td align="middle">
+        <img src="images/p2/dragon_250.png" width="480px" />
+        <figcaption align="middle">Roughness of 0.25</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p2/dragon_500.png" width="480px" />
+        <figcaption align="middle">Roughness of 0.5</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <p>There were two approaches to sampling implemented. The first was cosine hemisphere sampling, sampling from a hemisphere with cosine-weighted points. The second approach was importance sampling. Using the Beckmann distribution from before, we use Monte Carlo integration to retrieve samples with respect to the solid angle. We do this by integrating and then inverting the probability distribution functions for the spherical coordinates theta and phi, and then combining them to calculate the pdf with respect to the solid angle.</p>
+
+  <p>You can see in the pictures below that importance sampling converges far faster than cosine hemisphere sampling. Overall noise, particularly on the bunny, is much lower despite using the same number of samples.</p>
+
+  <p>The two images below were rendered with 64 samples per pixel, 1 light ray, and a maximum of 5 light bounces.</p>
+
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p2/bunny_coshem.png" width="480px" />
+        <figcaption align="middle">Cosine hemisphere sampling</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p2/bunny_imp.png" width="480px" />
+        <figcaption align="middle">Importance sampling</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <p>By changing the spectrums values used in our Fresnel (color) and normal distribution terms, we can also simulate other conductor materials.</p>
+
+  <p>The images below were rendered with 256 samples per pixel, 4 light rays, and a maximum ray depth of 5.</p>
+
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p2/bunny_co.png" width="480px" />
+        <figcaption align="middle">Cobalt bunny</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p2/dragon_cr.png" width="480px" />
+        <figcaption align="middle">Chromium dragon</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+<h2 align="middle">Part 3: Environment Light</h2>
+
+  <p>We implement a new light source in this part of the project, environment map lighting: an infinitely far light that provides radiance in all directions. The intensity of light in each direction is defined by a texture map, an image that also provides the 'background' of the environment.</p>
+
+  <p>First, we needed to get the environment image to render along with the rest of the scene. This was done by converting a camera ray's direction into an xy coordinate and then bilinearly interpolating values from the environment texture map, in a somewhat similar fashion to regular texture mapping. Initially, to simulate the effects of light from all directions, we used uniform sphere sampling to generate radiance values at various directions on the environment map.</p>
+
+  <p>Later, we implemented importance sampling, to bias the sampled directions towards brighter light sources. We do this in three steps. First, we calculate a prodbability distribution at each coordinate on our environment map. Then, we compute the cumulative marginal distribution and conditional distribution for that pdf. Finally, we once again use Monte Carlo integration, performing the inversion method on our marginal and conditional distribution, to retrieve an xy coordinate at which we sample and bilinearly interpolate the environment map value.</p>
+
+  <div align="center">
+      <img src="images/p3/probability_debug.png" width="960px" />
+      <figcaption align="middle">Probability debug image for the field.exr environment map</figcaption>
+  </div>
+
+  <p>I ran into several issues in this part of the project. I initially had white dots appearing on my bunny, which I assumed to be noise due to uniform sphere sampling not converging quickly enough. However, despite getting the probability debug image to match the given output, the white dots continued to persist. I discovered that even if I changed my code such that the bunny would render entirely in black, it still contained the same dots, in the exact same location as well. I was able to fix this by going back to my microfacet BSDF code and updating a bound check to be <= 0 from < 0. However, for most of the environment maps aside from field, I could not figure out how to properly render either the diffuse or microfacet bunny with importance sampling, instead getting an almost entirely white bunny. I suspect this is because I made a mistake somewhere in the probability calculations, leading to a division by zero.</p>
+
+  <p>The pictures below were created with 4 samples per pixel and 64 light rays. The difference in noise among uniform sphere sampling and importance sampling is not nearly as noticeable as for cosine hemisphere sampling and importance sampling for the microfacet BRDF, but in the microfacet pictures you can see a slight decrease in white dots around the bunny's head.</p>
+  
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p3/bunny_uni.png" width="480px" />
+        <figcaption align="middle">Diffuse bunny, uniform sphere sampling</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p3/bunny_imp.png" width="480px" />
+        <figcaption align="middle">Diffuse bunny, importance sampling</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p3/bunny_cu_uni.png" width="480px" />
+        <figcaption align="middle">Microfacet bunny, uniform sphere sampling</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p3/bunny_cu_imp.png" width="480px" />
+        <figcaption align="middle">Microfacet bunny, importance sampling</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+<h2 align="middle">Part 4: Depth of Field</h2>
+
+  <p>Finally, we enable our pathtracer to simulate depth of field effects by altering our camera to simulate a thin lens (we ignore the thickness but assume that it refracts as a typical lens would). To do this, we update the rays generated from our camera with a new origin and direction. Instead of initializing all of our rays at the camera position, we take their origin to be a randomly sampled location on the thin lens. We then calculate a point of focus by intersecting our generated ray direction with the plane of focus, which is located a distance equal to the focal length away from the lens. We can get this point by calculating where the sampled coordinate intersects with the sensor plane at 1 unit away. Then, we simply multiply that by our focal distance to find our point of focus. The direction of our new generated ray then becomes the point of focus minus the point on the lens.</p> 
+
+  <p>The four pictures below are the gold microfacet dragon with a roughness of 0.5. The aperture remains constant throughout each image, but the focus changes. Notice how changes in focal length lead to blurriness in various parts of the image: At a focal length of 0.25, nothing is in focus. At 0.30, only the front of the dragon enters the plane of focus. At a focal length of 0.35, the front of the dragon is no longer in focus, but the back half is. At 0.45, none of the dragon is focused anymore, but the back wall of the cornell box is.</p>
+
+  <p>Each picture was rendered with 256 samples per pixel, 4 light rays, a maximum ray depth of 5, and an aperture of 0.0625.</p>
+
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p4/dragon_25.png" width="480px" />
+        <figcaption align="middle">Focal length of 0.25</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p4/dragon_30.png" width="480px" />
+        <figcaption align="middle">Focal length of 0.30</figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td align="middle">
+        <img src="images/p4/dragon_35.png" width="480px" />
+        <figcaption align="middle">Focal length of 0.35</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p4/dragon_45.png" width="480px" />
+        <figcaption align="middle">Focal length of 0.45</figcaption>
+        </td>
+      </tr>
+    </table>
+    <br>
+  </div>
+
+  <p>The next four pictures are of the copper microfacet bunny. Each image has the same focal length, but the aperture varies between them. At an aperture of 0, we simulate a pin-hole camera, which we have been using up to now, and everything in the frame comes into focus. At an aperture of 0.125, the walls of the cornell box start to blur while the bunny remains in focus. At higher levels, parts of the bunny begin to blur as well until only a portion of the head and upper back are in focus.</p>
+
+  <p>Each picture was rendered with 1024 samples per pixel, 4 light rays, a maximum ray depth of 5, and a focal length of 4.0.</p>
+
+  <div align="center">
+    <table style="width=100%">
+      <tr>
+        <td align="middle">
+        <img src="images/p4/bunny_000.png" width="480px" />
+        <figcaption align="middle">Aperture of 0</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p4/bunny_125.png" width="480px" />
+        <figcaption align="middle">Aperture of 0.125</figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td align="middle">
+        <img src="images/p4/bunny_250.png" width="480px" />
+        <figcaption align="middle">Aperture of 0.250</figcaption>
+        </td>
+        <td align="middle">
+        <img src="images/p4/bunny_375.png" width="480px" />
+        <figcaption align="middle">Aperture of 0.375</figcaption>
+        </td>
+      </tr>
+    </table>
+    <br>
+  </div>
+
+</div>
+</body>
+</html>

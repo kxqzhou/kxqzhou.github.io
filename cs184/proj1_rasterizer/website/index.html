@@ -1,0 +1,245 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2017</h1>
+<h1 align="middle">Project 1: Rasterizer</h1>
+<h2 align="middle">Kyle Zhou, CS184-abj</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<!-- <p>Give a high-level overview of what you implemented in this project. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the project.</p> -->
+
+<p> In this project, we implement portions of an image rasterizer. Several techniques and concepts are used: sampling, anti-aliasing, barycentric coordinates, and texture mapping. Some parallels can  readily be drawn to the animation pipeline
+used in software such as Autodesk Maya. For example, the rendering code likely is a rasterization of the frame that the 
+camera currently captures, and rendering also includes some form of anti-aliasing if specified to do so. UV mapping models 
+definitely is a form of texture mapping, in addition to other portions such as environment lighting. </p>
+
+<h2 align="middle">Section I: Rasterization</h2>
+
+<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+
+<p> The process of rasterizing triangles consists of using an input triangle to generate framebuffer pixel values. 
+    Initially, we use a dot product test to determine if a point falls within the input triangle. We check the dot 
+    product of a vector from the origin to the point and a vector formed from each side. If all results are non-negative, 
+    then we know the pixel center is within the bounding triangle and so we assign that pixel the color. This algorithm
+    checks each pixel within the bounding box of the triangle, as it ranges over the minimum and maximum x and y values 
+    of the three corner points. </p>
+
+<!-- <p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p> -->
+
+<div align="middle">
+	<img src="images/part1/basic_t4.png" align="middle" width="400px"/>
+  	<figcaption align="middle"> 
+  		Test image 4 with basic rasterization. Although the corner of the triangle appears smooth at a distance,
+  		you can see the jagged lines the pixels form when zoomed in. Because we only make a binary distinction between 
+  		falling within or not within the input triangle and the fact that screen pixels are squares, trying to approximate
+  		a non-perpendicular edge results in a jagged pattern.
+  	</figcaption>
+</div>
+
+<!-- 
+<div align="middle">
+  <table style="width=100%">
+	<tr>
+      <td>
+        <img src="images/image1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Caption goes here.</figcaption>
+      </td>
+      <td>
+        <img src="images/image2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Caption goes here.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/image3.png" align="middle" width="400px"/>
+        <figcaption align="middle">Caption goes here.</figcaption>
+      </td>
+      <td>
+        <img src="images/image4.png" align="middle" width="400px"/>
+        <figcaption align="middle">Caption goes here.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+-->
+
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+
+<p> Supersampling is a visual improvement upon the rasterization strategy mentioned above. Instead of only considering the
+	center of a pixel, we treat each block as a having n sub-blocks, each of which will be sampled and assigned a color 
+	value. After sampling each sub-pixel, the final pixel color becomes the average of its sub-pixels. As a result of
+	this method, especially around edges some pixels will have a lighter color, creating a blurring effect on the image.
+	Looking at the red triangle's left corner in the pictures below, you can see the amount of jaggies in its edges drop
+	dramatically as the sampling rate increases. </p>
+
+<div align="middle">
+  <table style="width=100%">
+	<tr>
+      <td>
+        <img src="images/part2/s1.png" align="middle" width="360px"/>
+        <figcaption align="middle">Sampling rate 1.</figcaption>
+      </td>
+      <td>
+        <img src="images/part2/s4.png" align="middle" width="360px"/>
+        <figcaption align="middle">Sampling rate 4.</figcaption>
+      </td>
+      <td>
+        <img src="images/part2/s16.png" align="middle" width="360px"/>
+        <figcaption align="middle">Sampling rate 16.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 3: Transforms</h3>
+
+<p> Using matrices, we can perform basic transformations such as translation, rotation, and scaling. 
+	An interesting thing to note is the use of homogenous coordinates, in which an extra dimension is added
+	in order to facilitate translation. This way, translation can be treated as another matrix multiplication rather
+	than requiring adding another matrix to the current point or vector </p>
+
+<div align="middle">
+	<img src="images/part3/robot.png" align="middle" width="400px"/>
+  	<figcaption align="middle"> 
+  		The cubeman transformed to a crane pose.
+  	</figcaption>
+</div>
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+
+<p> A different way to describe points in terms of a triangle is barycentric coordinates. Each point can be defined as an 
+(alpha, beta, gamma) in relation to the the 3 vertices of a triangle, where alpha, beta, and gamma give how far away the 
+point is from point A, B, and C, respectively. To better illustrate this, consider the gradient in the triangle below. 
+You can think of each vertex as holding a color for it's value, and at each point within the triangle, it's own color
+consists of a weighted average of all three vertexes. That is, alpha is the weight for vertex A, beta for B, and gamma
+for C. As such, the colors towards the corners of the triangle will be the deepest / purest because the weighting on the 
+vertex nearest them is greatest while towards the center, you will have a mixing of all three colors. </p>
+
+<div align="middle">
+  <table style="width=100%">
+	<tr>
+      <td>
+        <img src="images/part4/tri.png" align="middle" width="350px"/>
+        <figcaption align="middle">Triangular color gradient.</figcaption>
+      </td>
+      <td>
+        <img src="images/part4/wheel.png" align="middle" width="350px"/>
+        <figcaption align="middle"> &nbsp Circular color gradient.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+
+<p>Pixel sampling is a method of applying a given texture to a surface, or rather, the triangles we work with. It consists 
+of a mapping of "texels" (pixels on our texture) back to the pixels in our image. There are two implementations that we 
+worked with in this project. The first is nearest-pixel sampling, which simply takes the given uv-coordinates and converts
+them into xy coordinates to be pulled from the texture. The second method is bilinear sampling, which takes a weighted sum
+of the four texels nearest our coordinate instead of just one. Much like super-sampling, this will create a blur effect that
+smooths out the image. The largest difference between the two will occur at areas of high frequency, for example, the edges 
+of a triangle. Any area where the pixels have the greatest rate of change is an area of high frequency, and as bilinear 
+sampling computes an average of texels rather than just one.
+<br><br>
+You can see a noticeable blur especially when zoomed in on the bilinear sampling as compared to nearest pixel sampling </p>
+
+<div align="middle">
+  <table style="width=100%">
+	<tr>
+      <td>
+        <img src="images/part5/s1n.png" align="middle" width="400px"/>
+        <figcaption align="middle"> Sampling rate 1, nearest pixel sampling.</figcaption>
+      </td>
+      <td>
+        <img src="images/part5/s1b.png" align="middle" width="400px"/>
+        <figcaption align="middle"> Sampling rate 1, bilinear pixel sampling.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/part5/s16n.png" align="middle" width="400px"/>
+        <figcaption align="middle">Sampling rate 16, nearest pixel sampling.</figcaption>
+      </td>
+      <td>
+        <img src="images/part5/s16b.png" align="middle" width="400px"/>
+        <figcaption align="middle">Sampling rate 16, bilinear pixel sampling.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+
+<p>
+Finally, we have level sampling. Level sampling is another form of anti-aliasing by using different resolutions of
+the original texture image when we need to use texture minification. These re-sized textures are pre-calculated and
+stored as an object called a mipmap, and are used to reduce artifacts as well as improve render speed. Compared to 
+just pixel sampling using the original texture, level sampling will always use more memory (4/3 as much), but especially
+at closer zoom levels, the image quality and speed will always improve over pixel sampling because of the precomputed 
+mipmaps. 
+</p>
+
+<div align="middle">
+  <table style="width=100%">
+	<tr>
+      <td>
+        <img src="images/part6/pnlz.png" align="middle" width="400px"/>
+        <figcaption align="middle"> Nearest pixel sampling at level 0.</figcaption>
+      </td>
+      <td>
+        <img src="images/part6/pnln.png" align="middle" width="400px"/>
+        <figcaption align="middle"> Nearest pixel sampling with nearest level.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/part6/pllz.png" align="middle" width="400px"/>
+        <figcaption align="middle">Bilinear pixel sampling with level 0.</figcaption>
+      </td>
+      <td>
+        <img src="images/part6/plln.png" align="middle" width="400px"/>
+        <figcaption align="middle">Bilinear pixel sampling with nearest level.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!--
+<h2 align="middle">Section III: Art Competition</h2>
+<p>If you are not participating in the optional art competition, don't worry about this section!</p>
+
+<h3 align="middle">Part 7: Draw something interesting!</h3>
+-->
+</body>
+</html>

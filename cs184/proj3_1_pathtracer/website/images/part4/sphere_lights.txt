@@ -1,0 +1,1 @@
+./pathtracer -t 8 -s 64 -l 16 -m 5 -r 480 360 -f spheres_****.png ../dae/sky/CBspheres_lambertian.dae 
